@@ -155,6 +155,113 @@ func (s *SheetsMCPServer) registerTools() {
 		mcp.WithObject("recipients", mcp.Required(), mcp.Description("List of recipient objects with email_address and role")),
 		mcp.WithBoolean("send_notification", mcp.Description("Whether to send notification emails (default: true)")),
 	), s.handleShareSpreadsheet)
+
+	// Advanced data operations
+	s.mcpServer.AddTool(mcp.NewTool("append_data",
+		mcp.WithDescription("Append data to the end of a sheet without specifying exact range"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("sheet", mcp.Required(), mcp.Description("The name of the sheet")),
+		mcp.WithObject("data", mcp.Required(), mcp.Description("2D array of values to append")),
+	), s.handleAppendData)
+
+	s.mcpServer.AddTool(mcp.NewTool("clear_range",
+		mcp.WithDescription("Clear content from a specific range in a sheet"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("sheet", mcp.Required(), mcp.Description("The name of the sheet")),
+		mcp.WithString("range", mcp.Required(), mcp.Description("Cell range in A1 notation to clear")),
+	), s.handleClearRange)
+
+	s.mcpServer.AddTool(mcp.NewTool("delete_sheet",
+		mcp.WithDescription("Delete a sheet tab from a spreadsheet"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("sheet", mcp.Required(), mcp.Description("The name of the sheet to delete")),
+	), s.handleDeleteSheet)
+
+	s.mcpServer.AddTool(mcp.NewTool("duplicate_sheet",
+		mcp.WithDescription("Duplicate a sheet within the same spreadsheet"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("sheet", mcp.Required(), mcp.Description("The name of the sheet to duplicate")),
+		mcp.WithString("new_title", mcp.Description("Title for the duplicated sheet")),
+	), s.handleDuplicateSheet)
+
+	s.mcpServer.AddTool(mcp.NewTool("find_replace",
+		mcp.WithDescription("Find and replace text in a sheet or entire spreadsheet"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("find", mcp.Required(), mcp.Description("The text to find")),
+		mcp.WithString("replacement", mcp.Description("The replacement text")),
+		mcp.WithString("sheet", mcp.Description("Sheet name (required if all_sheets is false)")),
+		mcp.WithBoolean("all_sheets", mcp.Description("Search all sheets (default: false)")),
+		mcp.WithBoolean("match_case", mcp.Description("Match case (default: false)")),
+		mcp.WithBoolean("match_entire_cell", mcp.Description("Match entire cell (default: false)")),
+	), s.handleFindReplace)
+
+	s.mcpServer.AddTool(mcp.NewTool("sort_range",
+		mcp.WithDescription("Sort a range of data in a sheet"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("sheet", mcp.Required(), mcp.Description("The name of the sheet")),
+		mcp.WithString("range", mcp.Required(), mcp.Description("Cell range in A1:B2 notation to sort")),
+		mcp.WithNumber("sort_column", mcp.Description("0-based column index to sort by (default: 0)")),
+		mcp.WithBoolean("ascending", mcp.Description("Sort in ascending order (default: true)")),
+	), s.handleSortRange)
+
+	// Formatting operations
+	s.mcpServer.AddTool(mcp.NewTool("format_cells",
+		mcp.WithDescription("Apply formatting to cells (colors, fonts, text styles)"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("sheet", mcp.Required(), mcp.Description("The name of the sheet")),
+		mcp.WithString("range", mcp.Required(), mcp.Description("Cell range in A1:B2 notation")),
+		mcp.WithObject("background_color", mcp.Description("Background color {red, green, blue, alpha} (0.0-1.0)")),
+		mcp.WithObject("text_color", mcp.Description("Text color {red, green, blue, alpha} (0.0-1.0)")),
+		mcp.WithBoolean("bold", mcp.Description("Make text bold")),
+		mcp.WithBoolean("italic", mcp.Description("Make text italic")),
+		mcp.WithNumber("font_size", mcp.Description("Font size in points")),
+	), s.handleFormatCells)
+
+	s.mcpServer.AddTool(mcp.NewTool("merge_cells",
+		mcp.WithDescription("Merge cells in a range"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("sheet", mcp.Required(), mcp.Description("The name of the sheet")),
+		mcp.WithString("range", mcp.Required(), mcp.Description("Cell range in A1:B2 notation to merge")),
+		mcp.WithString("merge_type", mcp.Description("Merge type: MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS (default: MERGE_ALL)")),
+	), s.handleMergeCells)
+
+	s.mcpServer.AddTool(mcp.NewTool("unmerge_cells",
+		mcp.WithDescription("Unmerge cells in a range"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("sheet", mcp.Required(), mcp.Description("The name of the sheet")),
+		mcp.WithString("range", mcp.Required(), mcp.Description("Cell range in A1:B2 notation to unmerge")),
+	), s.handleUnmergeCells)
+
+	s.mcpServer.AddTool(mcp.NewTool("hide_sheet",
+		mcp.WithDescription("Hide a sheet in a spreadsheet"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("sheet", mcp.Required(), mcp.Description("The name of the sheet to hide")),
+	), s.handleHideSheet)
+
+	s.mcpServer.AddTool(mcp.NewTool("unhide_sheet",
+		mcp.WithDescription("Unhide a sheet in a spreadsheet"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("sheet", mcp.Required(), mcp.Description("The name of the sheet to unhide")),
+	), s.handleUnhideSheet)
+
+	// Permission management
+	s.mcpServer.AddTool(mcp.NewTool("list_permissions",
+		mcp.WithDescription("List all permissions for a spreadsheet"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+	), s.handleListPermissions)
+
+	s.mcpServer.AddTool(mcp.NewTool("remove_permission",
+		mcp.WithDescription("Remove a permission from a spreadsheet"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("permission_id", mcp.Required(), mcp.Description("The permission ID to remove")),
+	), s.handleRemovePermission)
+
+	// Export operations
+	s.mcpServer.AddTool(mcp.NewTool("export_spreadsheet",
+		mcp.WithDescription("Export a spreadsheet to different formats (csv, pdf, xlsx, ods, tsv)"),
+		mcp.WithString("spreadsheet_id", mcp.Required(), mcp.Description("The ID of the spreadsheet")),
+		mcp.WithString("format", mcp.Description("Export format: csv, pdf, xlsx, ods, tsv (default: csv)")),
+	), s.handleExportSpreadsheet)
 }
 
 func (s *SheetsMCPServer) registerResources() {

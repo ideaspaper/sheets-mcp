@@ -7,9 +7,12 @@ A standalone Model Context Protocol (MCP) server that provides comprehensive too
 This MCP server enables AI assistants to interact with Google Sheets, providing tools for:
 
 - Reading and writing sheet data
-- Managing sheets and spreadsheets
+- Managing sheets and spreadsheets (create, delete, duplicate, hide/unhide)
 - Batch operations across multiple sheets
-- Sharing spreadsheets with users
+- Advanced data operations (append, clear, find & replace, sort)
+- Cell formatting (colors, fonts, merge/unmerge)
+- Sharing and permissions management
+- Export to multiple formats (CSV, PDF, Excel, etc.)
 
 ## Installation
 
@@ -91,6 +94,18 @@ Add this to your OpenCode configuration file (Mac: `~/.config/opencode/config.js
 - **batch_update_cells**: Batch update multiple ranges
   - Parameters: `spreadsheet_id`, `sheet`, `ranges`
 
+- **append_data**: Append data to the end of a sheet
+  - Parameters: `spreadsheet_id`, `sheet`, `data`
+
+- **clear_range**: Clear content from a specific range
+  - Parameters: `spreadsheet_id`, `sheet`, `range`
+
+- **find_replace**: Find and replace text in a sheet or entire spreadsheet
+  - Parameters: `spreadsheet_id`, `find`, `replacement` (optional), `sheet` (optional), `all_sheets` (optional), `match_case` (optional), `match_entire_cell` (optional)
+
+- **sort_range**: Sort a range of data
+  - Parameters: `spreadsheet_id`, `sheet`, `range`, `sort_column` (optional), `ascending` (optional)
+
 ### Row and Column Operations
 
 - **add_rows**: Add rows to a sheet
@@ -113,6 +128,18 @@ Add this to your OpenCode configuration file (Mac: `~/.config/opencode/config.js
 - **rename_sheet**: Rename a sheet
   - Parameters: `spreadsheet`, `sheet`, `new_name`
 
+- **delete_sheet**: Delete a sheet tab
+  - Parameters: `spreadsheet_id`, `sheet`
+
+- **duplicate_sheet**: Duplicate a sheet within the same spreadsheet
+  - Parameters: `spreadsheet_id`, `sheet`, `new_title` (optional)
+
+- **hide_sheet**: Hide a sheet
+  - Parameters: `spreadsheet_id`, `sheet`
+
+- **unhide_sheet**: Unhide a sheet
+  - Parameters: `spreadsheet_id`, `sheet`
+
 ### Spreadsheet Operations
 
 - **list_spreadsheets**: List all spreadsheets in configured Drive folder
@@ -123,6 +150,26 @@ Add this to your OpenCode configuration file (Mac: `~/.config/opencode/config.js
 
 - **share_spreadsheet**: Share a spreadsheet with users
   - Parameters: `spreadsheet_id`, `recipients`, `send_notification` (optional)
+
+- **list_permissions**: List all permissions for a spreadsheet
+  - Parameters: `spreadsheet_id`
+
+- **remove_permission**: Remove a permission from a spreadsheet
+  - Parameters: `spreadsheet_id`, `permission_id`
+
+- **export_spreadsheet**: Export a spreadsheet to different formats
+  - Parameters: `spreadsheet_id`, `format` (csv, pdf, xlsx, ods, tsv - default: csv)
+
+### Formatting Operations
+
+- **format_cells**: Apply formatting to cells (colors, fonts, text styles)
+  - Parameters: `spreadsheet_id`, `sheet`, `range`, `background_color` (optional), `text_color` (optional), `bold` (optional), `italic` (optional), `font_size` (optional)
+
+- **merge_cells**: Merge cells in a range
+  - Parameters: `spreadsheet_id`, `sheet`, `range`, `merge_type` (optional: MERGE_ALL, MERGE_COLUMNS, MERGE_ROWS)
+
+- **unmerge_cells**: Unmerge cells in a range
+  - Parameters: `spreadsheet_id`, `sheet`, `range`
 
 ### Batch Operations
 

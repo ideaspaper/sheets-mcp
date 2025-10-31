@@ -851,3 +851,680 @@ func (s *SheetsMCPServer) handleGetSpreadsheetInfo(ctx context.Context, request 
 
 	return []mcp.ResourceContents{content}, nil
 }
+
+func (s *SheetsMCPServer) handleAppendData(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	sheet := parseArgument(args, "sheet", "")
+
+	if spreadsheetID == "" || sheet == "" {
+		return respondWithError("spreadsheet_id and sheet are required")
+	}
+
+	dataRaw, ok := args["data"]
+	if !ok {
+		return respondWithError("data is required")
+	}
+
+	data, err := convertToValues(dataRaw)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("invalid data format: %v", err))
+	}
+
+	valueRange := &sheets.ValueRange{
+		Values: data,
+	}
+
+	result, err := s.sheetsService.Spreadsheets.Values.Append(spreadsheetID, sheet, valueRange).
+		ValueInputOption("USER_ENTERED").
+		Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to append data: %v", err))
+	}
+
+	return respondWithJSON(result)
+}
+
+func (s *SheetsMCPServer) handleClearRange(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	sheet := parseArgument(args, "sheet", "")
+	rangeStr := parseArgument(args, "range", "")
+
+	if spreadsheetID == "" || sheet == "" || rangeStr == "" {
+		return respondWithError("spreadsheet_id, sheet, and range are required")
+	}
+
+	fullRange := fmt.Sprintf("%s!%s", sheet, rangeStr)
+
+	result, err := s.sheetsService.Spreadsheets.Values.Clear(spreadsheetID, fullRange, &sheets.ClearValuesRequest{}).Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to clear range: %v", err))
+	}
+
+	return respondWithJSON(result)
+}
+
+func (s *SheetsMCPServer) handleDeleteSheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	sheet := parseArgument(args, "sheet", "")
+
+	if spreadsheetID == "" || sheet == "" {
+		return respondWithError("spreadsheet_id and sheet are required")
+	}
+
+	sheetID, err := s.getSheetID(spreadsheetID, sheet)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
+	}
+
+	requests := []*sheets.Request{
+		{
+			DeleteSheet: &sheets.DeleteSheetRequest{
+				SheetId: sheetID,
+			},
+		},
+	}
+
+	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}
+
+	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to delete sheet: %v", err))
+	}
+
+	return respondWithJSON(result)
+}
+
+func (s *SheetsMCPServer) handleDuplicateSheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	sheet := parseArgument(args, "sheet", "")
+	newTitle := parseArgument(args, "new_title", "")
+
+	if spreadsheetID == "" || sheet == "" {
+		return respondWithError("spreadsheet_id and sheet are required")
+	}
+
+	sheetID, err := s.getSheetID(spreadsheetID, sheet)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
+	}
+
+	requests := []*sheets.Request{
+		{
+			DuplicateSheet: &sheets.DuplicateSheetRequest{
+				SourceSheetId: sheetID,
+				NewSheetName:  newTitle,
+			},
+		},
+	}
+
+	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}
+
+	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to duplicate sheet: %v", err))
+	}
+
+	return respondWithJSON(result)
+}
+
+func (s *SheetsMCPServer) handleFindReplace(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	find := parseArgument(args, "find", "")
+	replacement := parseArgument(args, "replacement", "")
+	allSheets := parseArgument(args, "all_sheets", false)
+	matchCase := parseArgument(args, "match_case", false)
+	matchEntireCell := parseArgument(args, "match_entire_cell", false)
+
+	if spreadsheetID == "" || find == "" {
+		return respondWithError("spreadsheet_id and find are required")
+	}
+
+	findReplaceRequest := &sheets.FindReplaceRequest{
+		Find:            find,
+		Replacement:     replacement,
+		AllSheets:       allSheets,
+		MatchCase:       matchCase,
+		MatchEntireCell: matchEntireCell,
+		SearchByRegex:   false,
+		IncludeFormulas: true,
+	}
+
+	if !allSheets {
+		sheet := parseArgument(args, "sheet", "")
+		if sheet == "" {
+			return respondWithError("sheet is required when all_sheets is false")
+		}
+		sheetID, err := s.getSheetID(spreadsheetID, sheet)
+		if err != nil {
+			return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
+		}
+		findReplaceRequest.SheetId = sheetID
+	}
+
+	requests := []*sheets.Request{
+		{
+			FindReplace: findReplaceRequest,
+		},
+	}
+
+	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}
+
+	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to find and replace: %v", err))
+	}
+
+	return respondWithJSON(result)
+}
+
+func (s *SheetsMCPServer) handleSortRange(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	sheet := parseArgument(args, "sheet", "")
+	rangeStr := parseArgument(args, "range", "")
+	sortColumn := int64(parseArgument(args, "sort_column", float64(0)))
+	ascending := parseArgument(args, "ascending", true)
+
+	if spreadsheetID == "" || sheet == "" || rangeStr == "" {
+		return respondWithError("spreadsheet_id, sheet, and range are required")
+	}
+
+	sheetID, err := s.getSheetID(spreadsheetID, sheet)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
+	}
+
+	gridRange, err := parseGridRange(sheetID, rangeStr)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("invalid range format: %v", err))
+	}
+
+	requests := []*sheets.Request{
+		{
+			SortRange: &sheets.SortRangeRequest{
+				Range: gridRange,
+				SortSpecs: []*sheets.SortSpec{
+					{
+						DimensionIndex: sortColumn,
+						SortOrder:      getSortOrder(ascending),
+					},
+				},
+			},
+		},
+	}
+
+	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}
+
+	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to sort range: %v", err))
+	}
+
+	return respondWithJSON(result)
+}
+
+func (s *SheetsMCPServer) handleFormatCells(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	sheet := parseArgument(args, "sheet", "")
+	rangeStr := parseArgument(args, "range", "")
+
+	if spreadsheetID == "" || sheet == "" || rangeStr == "" {
+		return respondWithError("spreadsheet_id, sheet, and range are required")
+	}
+
+	sheetID, err := s.getSheetID(spreadsheetID, sheet)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
+	}
+
+	gridRange, err := parseGridRange(sheetID, rangeStr)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("invalid range format: %v", err))
+	}
+
+	cellFormat := &sheets.CellFormat{}
+	fields := []string{}
+
+	if bgColorRaw, ok := args["background_color"]; ok {
+		if bgColor, err := parseColor(bgColorRaw); err == nil {
+			cellFormat.BackgroundColor = bgColor
+			fields = append(fields, "backgroundColor")
+		}
+	}
+
+	if fgColorRaw, ok := args["text_color"]; ok {
+		if fgColor, err := parseColor(fgColorRaw); err == nil {
+			if cellFormat.TextFormat == nil {
+				cellFormat.TextFormat = &sheets.TextFormat{}
+			}
+			cellFormat.TextFormat.ForegroundColor = fgColor
+			fields = append(fields, "textFormat.foregroundColor")
+		}
+	}
+
+	if bold, ok := args["bold"]; ok {
+		if cellFormat.TextFormat == nil {
+			cellFormat.TextFormat = &sheets.TextFormat{}
+		}
+		cellFormat.TextFormat.Bold = bold.(bool)
+		fields = append(fields, "textFormat.bold")
+	}
+
+	if italic, ok := args["italic"]; ok {
+		if cellFormat.TextFormat == nil {
+			cellFormat.TextFormat = &sheets.TextFormat{}
+		}
+		cellFormat.TextFormat.Italic = italic.(bool)
+		fields = append(fields, "textFormat.italic")
+	}
+
+	if fontSize, ok := args["font_size"]; ok {
+		if cellFormat.TextFormat == nil {
+			cellFormat.TextFormat = &sheets.TextFormat{}
+		}
+		cellFormat.TextFormat.FontSize = int64(fontSize.(float64))
+		fields = append(fields, "textFormat.fontSize")
+	}
+
+	if len(fields) == 0 {
+		return respondWithError("at least one formatting option must be provided")
+	}
+
+	requests := []*sheets.Request{
+		{
+			RepeatCell: &sheets.RepeatCellRequest{
+				Range: gridRange,
+				Cell: &sheets.CellData{
+					UserEnteredFormat: cellFormat,
+				},
+				Fields: strings.Join(fields, ","),
+			},
+		},
+	}
+
+	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}
+
+	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to format cells: %v", err))
+	}
+
+	return respondWithJSON(result)
+}
+
+func (s *SheetsMCPServer) handleMergeCells(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	sheet := parseArgument(args, "sheet", "")
+	rangeStr := parseArgument(args, "range", "")
+	mergeType := parseArgument(args, "merge_type", "MERGE_ALL")
+
+	if spreadsheetID == "" || sheet == "" || rangeStr == "" {
+		return respondWithError("spreadsheet_id, sheet, and range are required")
+	}
+
+	sheetID, err := s.getSheetID(spreadsheetID, sheet)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
+	}
+
+	gridRange, err := parseGridRange(sheetID, rangeStr)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("invalid range format: %v", err))
+	}
+
+	requests := []*sheets.Request{
+		{
+			MergeCells: &sheets.MergeCellsRequest{
+				Range:     gridRange,
+				MergeType: mergeType,
+			},
+		},
+	}
+
+	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}
+
+	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to merge cells: %v", err))
+	}
+
+	return respondWithJSON(result)
+}
+
+func (s *SheetsMCPServer) handleUnmergeCells(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	sheet := parseArgument(args, "sheet", "")
+	rangeStr := parseArgument(args, "range", "")
+
+	if spreadsheetID == "" || sheet == "" || rangeStr == "" {
+		return respondWithError("spreadsheet_id, sheet, and range are required")
+	}
+
+	sheetID, err := s.getSheetID(spreadsheetID, sheet)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
+	}
+
+	gridRange, err := parseGridRange(sheetID, rangeStr)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("invalid range format: %v", err))
+	}
+
+	requests := []*sheets.Request{
+		{
+			UnmergeCells: &sheets.UnmergeCellsRequest{
+				Range: gridRange,
+			},
+		},
+	}
+
+	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}
+
+	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to unmerge cells: %v", err))
+	}
+
+	return respondWithJSON(result)
+}
+
+func (s *SheetsMCPServer) handleHideSheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	sheet := parseArgument(args, "sheet", "")
+
+	if spreadsheetID == "" || sheet == "" {
+		return respondWithError("spreadsheet_id and sheet are required")
+	}
+
+	sheetID, err := s.getSheetID(spreadsheetID, sheet)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
+	}
+
+	requests := []*sheets.Request{
+		{
+			UpdateSheetProperties: &sheets.UpdateSheetPropertiesRequest{
+				Properties: &sheets.SheetProperties{
+					SheetId: sheetID,
+					Hidden:  true,
+				},
+				Fields: "hidden",
+			},
+		},
+	}
+
+	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}
+
+	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to hide sheet: %v", err))
+	}
+
+	return respondWithJSON(result)
+}
+
+func (s *SheetsMCPServer) handleUnhideSheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	sheet := parseArgument(args, "sheet", "")
+
+	if spreadsheetID == "" || sheet == "" {
+		return respondWithError("spreadsheet_id and sheet are required")
+	}
+
+	sheetID, err := s.getSheetID(spreadsheetID, sheet)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
+	}
+
+	requests := []*sheets.Request{
+		{
+			UpdateSheetProperties: &sheets.UpdateSheetPropertiesRequest{
+				Properties: &sheets.SheetProperties{
+					SheetId: sheetID,
+					Hidden:  false,
+				},
+				Fields: "hidden",
+			},
+		},
+	}
+
+	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}
+
+	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to unhide sheet: %v", err))
+	}
+
+	return respondWithJSON(result)
+}
+
+func (s *SheetsMCPServer) handleListPermissions(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+
+	if spreadsheetID == "" {
+		return respondWithError("spreadsheet_id is required")
+	}
+
+	permissions, err := s.driveService.Permissions.List(spreadsheetID).
+		Fields("permissions(id,type,role,emailAddress,displayName)").
+		SupportsAllDrives(true).
+		Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to list permissions: %v", err))
+	}
+
+	return respondWithJSON(permissions.Permissions)
+}
+
+func (s *SheetsMCPServer) handleRemovePermission(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	permissionID := parseArgument(args, "permission_id", "")
+
+	if spreadsheetID == "" || permissionID == "" {
+		return respondWithError("spreadsheet_id and permission_id are required")
+	}
+
+	err = s.driveService.Permissions.Delete(spreadsheetID, permissionID).
+		SupportsAllDrives(true).
+		Do()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to remove permission: %v", err))
+	}
+
+	response := map[string]any{
+		"success":       true,
+		"permissionId":  permissionID,
+		"spreadsheetId": spreadsheetID,
+	}
+
+	return respondWithJSON(response)
+}
+
+func (s *SheetsMCPServer) handleExportSpreadsheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	args, err := getArgsFromRequest(request)
+	if err != nil {
+		return respondWithError(err.Error())
+	}
+	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	format := parseArgument(args, "format", "csv")
+
+	if spreadsheetID == "" {
+		return respondWithError("spreadsheet_id is required")
+	}
+
+	mimeType := ""
+	switch format {
+	case "csv":
+		mimeType = "text/csv"
+	case "pdf":
+		mimeType = "application/pdf"
+	case "xlsx":
+		mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	case "ods":
+		mimeType = "application/vnd.oasis.opendocument.spreadsheet"
+	case "tsv":
+		mimeType = "text/tab-separated-values"
+	default:
+		return respondWithError(fmt.Sprintf("unsupported format: %s (supported: csv, pdf, xlsx, ods, tsv)", format))
+	}
+
+	response, err := s.driveService.Files.Export(spreadsheetID, mimeType).Download()
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to export spreadsheet: %v", err))
+	}
+	defer response.Body.Close()
+
+	result := map[string]any{
+		"success":       true,
+		"spreadsheetId": spreadsheetID,
+		"format":        format,
+		"mimeType":      mimeType,
+		"message":       "Export successful. Use Drive API to download the file programmatically.",
+	}
+
+	return respondWithJSON(result)
+}
+
+func parseGridRange(sheetID int64, rangeStr string) (*sheets.GridRange, error) {
+	parts := strings.Split(rangeStr, ":")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("range must be in A1:B2 format")
+	}
+
+	startCol, startRow, err := parseA1Notation(parts[0])
+	if err != nil {
+		return nil, err
+	}
+
+	endCol, endRow, err := parseA1Notation(parts[1])
+	if err != nil {
+		return nil, err
+	}
+
+	return &sheets.GridRange{
+		SheetId:          sheetID,
+		StartRowIndex:    startRow,
+		EndRowIndex:      endRow + 1,
+		StartColumnIndex: startCol,
+		EndColumnIndex:   endCol + 1,
+	}, nil
+}
+
+func parseA1Notation(cell string) (col int64, row int64, err error) {
+	col = 0
+	row = 0
+
+	i := 0
+	for i < len(cell) && cell[i] >= 'A' && cell[i] <= 'Z' {
+		col = col*26 + int64(cell[i]-'A'+1)
+		i++
+	}
+	col--
+
+	if i == len(cell) {
+		return 0, 0, fmt.Errorf("invalid cell notation: %s", cell)
+	}
+
+	for i < len(cell) {
+		if cell[i] < '0' || cell[i] > '9' {
+			return 0, 0, fmt.Errorf("invalid cell notation: %s", cell)
+		}
+		row = row*10 + int64(cell[i]-'0')
+		i++
+	}
+	row--
+
+	return col, row, nil
+}
+
+func parseColor(colorRaw any) (*sheets.Color, error) {
+	colorMap, ok := colorRaw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("color must be an object with red, green, blue fields")
+	}
+
+	color := &sheets.Color{
+		Red:   float64(parseArgument(colorMap, "red", 0.0)),
+		Green: float64(parseArgument(colorMap, "green", 0.0)),
+		Blue:  float64(parseArgument(colorMap, "blue", 0.0)),
+		Alpha: float64(parseArgument(colorMap, "alpha", 1.0)),
+	}
+
+	return color, nil
+}
+
+func getSortOrder(ascending bool) string {
+	if ascending {
+		return "ASCENDING"
+	}
+	return "DESCENDING"
+}
