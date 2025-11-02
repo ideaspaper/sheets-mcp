@@ -467,6 +467,21 @@ func (s *SheetsMCPServer) getSheetID(spreadsheetID, sheetName string) (int64, er
 }
 
 func convertToValues(data any) ([][]any, error) {
+	// If data is already a [][]any, return it directly
+	if values, ok := data.([][]any); ok {
+		return values, nil
+	}
+
+	// If data is a string, try to unmarshal it
+	if str, ok := data.(string); ok {
+		var values [][]any
+		if err := json.Unmarshal([]byte(str), &values); err != nil {
+			return nil, err
+		}
+		return values, nil
+	}
+
+	// Otherwise, marshal and unmarshal to convert to [][]any
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
@@ -569,14 +584,9 @@ func (s *SheetsMCPServer) handleGetMultipleSheetData(ctx context.Context, reques
 		return respondWithError("queries is required")
 	}
 
-	queriesBytes, err := json.Marshal(queriesRaw)
-	if err != nil {
-		return respondWithError("invalid queries format")
-	}
-
 	var queries []map[string]string
-	if err := json.Unmarshal(queriesBytes, &queries); err != nil {
-		return respondWithError("invalid queries format")
+	if err := convertToType(queriesRaw, &queries); err != nil {
+		return respondWithError(fmt.Sprintf("invalid queries format: %v", err))
 	}
 
 	var results []map[string]any
@@ -630,14 +640,9 @@ func (s *SheetsMCPServer) handleGetMultipleSpreadsheetSummary(ctx context.Contex
 		return respondWithError("spreadsheet_ids is required")
 	}
 
-	idsBytes, err := json.Marshal(idsRaw)
-	if err != nil {
-		return respondWithError("invalid spreadsheet_ids format")
-	}
-
 	var spreadsheetIDs []string
-	if err := json.Unmarshal(idsBytes, &spreadsheetIDs); err != nil {
-		return respondWithError("invalid spreadsheet_ids format")
+	if err := convertToType(idsRaw, &spreadsheetIDs); err != nil {
+		return respondWithError(fmt.Sprintf("invalid spreadsheet_ids format: %v", err))
 	}
 
 	rowsToFetch := max(1, int(parseArgument(args, "rows_to_fetch", float64(5))))
@@ -726,14 +731,9 @@ func (s *SheetsMCPServer) handleShareSpreadsheet(ctx context.Context, request mc
 		return respondWithError("recipients is required")
 	}
 
-	recipientsBytes, err := json.Marshal(recipientsRaw)
-	if err != nil {
-		return respondWithError("invalid recipients format")
-	}
-
 	var recipients []map[string]string
-	if err := json.Unmarshal(recipientsBytes, &recipients); err != nil {
-		return respondWithError("invalid recipients format")
+	if err := convertToType(recipientsRaw, &recipients); err != nil {
+		return respondWithError(fmt.Sprintf("invalid recipients format: %v", err))
 	}
 
 	var successes []map[string]any
@@ -1123,7 +1123,7 @@ func (s *SheetsMCPServer) handleFormatCells(ctx context.Context, request mcp.Cal
 	if bgColorRaw, ok := args["background_color"]; ok {
 		if bgColor, err := parseColor(bgColorRaw); err == nil {
 			cellFormat.BackgroundColor = bgColor
-			fields = append(fields, "backgroundColor")
+			fields = append(fields, "userEnteredFormat.backgroundColor")
 		}
 	}
 
@@ -1133,7 +1133,7 @@ func (s *SheetsMCPServer) handleFormatCells(ctx context.Context, request mcp.Cal
 				cellFormat.TextFormat = &sheets.TextFormat{}
 			}
 			cellFormat.TextFormat.ForegroundColor = fgColor
-			fields = append(fields, "textFormat.foregroundColor")
+			fields = append(fields, "userEnteredFormat.textFormat.foregroundColor")
 		}
 	}
 
@@ -1142,7 +1142,7 @@ func (s *SheetsMCPServer) handleFormatCells(ctx context.Context, request mcp.Cal
 			cellFormat.TextFormat = &sheets.TextFormat{}
 		}
 		cellFormat.TextFormat.Bold = bold.(bool)
-		fields = append(fields, "textFormat.bold")
+		fields = append(fields, "userEnteredFormat.textFormat.bold")
 	}
 
 	if italic, ok := args["italic"]; ok {
@@ -1150,7 +1150,7 @@ func (s *SheetsMCPServer) handleFormatCells(ctx context.Context, request mcp.Cal
 			cellFormat.TextFormat = &sheets.TextFormat{}
 		}
 		cellFormat.TextFormat.Italic = italic.(bool)
-		fields = append(fields, "textFormat.italic")
+		fields = append(fields, "userEnteredFormat.textFormat.italic")
 	}
 
 	if fontSize, ok := args["font_size"]; ok {
@@ -1158,7 +1158,7 @@ func (s *SheetsMCPServer) handleFormatCells(ctx context.Context, request mcp.Cal
 			cellFormat.TextFormat = &sheets.TextFormat{}
 		}
 		cellFormat.TextFormat.FontSize = int64(fontSize.(float64))
-		fields = append(fields, "textFormat.fontSize")
+		fields = append(fields, "userEnteredFormat.textFormat.fontSize")
 	}
 
 	if len(fields) == 0 {
@@ -1527,4 +1527,20 @@ func getSortOrder(ascending bool) string {
 		return "ASCENDING"
 	}
 	return "DESCENDING"
+}
+
+// convertToType converts a parameter to the desired type, handling string JSON input
+func convertToType(data any, target any) error {
+	// If data is a string, try to unmarshal it as JSON
+	if str, ok := data.(string); ok {
+		return json.Unmarshal([]byte(str), target)
+	}
+
+	// Otherwise, marshal and unmarshal to convert to target type
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	return json.Unmarshal(dataBytes, target)
 }
