@@ -9,24 +9,21 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
 
 const (
 	SheetsScope = "https://www.googleapis.com/auth/spreadsheets"
-	DriveScope  = "https://www.googleapis.com/auth/drive"
 )
 
-var requiredScopes = []string{SheetsScope, DriveScope}
+var requiredScopes = []string{SheetsScope}
 
 type AuthConfig struct {
 	CredentialsConfig  string
 	ServiceAccountPath string
 	CredentialsPath    string
 	TokenPath          string
-	DriveFolderID      string
 }
 
 func LoadAuthConfig() *AuthConfig {
@@ -35,7 +32,6 @@ func LoadAuthConfig() *AuthConfig {
 		ServiceAccountPath: os.Getenv("SERVICE_ACCOUNT_PATH"),
 		CredentialsPath:    getEnvOrDefault("CREDENTIALS_PATH", "credentials.json"),
 		TokenPath:          getEnvOrDefault("TOKEN_PATH", "token.json"),
-		DriveFolderID:      os.Getenv("DRIVE_FOLDER_ID"),
 	}
 }
 
@@ -68,9 +64,6 @@ func (ac *AuthConfig) GetCredentials(ctx context.Context) (*oauth2.Token, []byte
 		credBytes, err := os.ReadFile(serviceAcctPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to read service account file: %w", err)
-		}
-		if ac.DriveFolderID != "" {
-			fmt.Printf("Working with Google Drive folder ID: %s\n", ac.DriveFolderID)
 		}
 		return nil, credBytes, nil
 	}
@@ -116,7 +109,7 @@ func (ac *AuthConfig) GetCredentials(ctx context.Context) (*oauth2.Token, []byte
 	return nil, creds.JSON, nil
 }
 
-func (ac *AuthConfig) CreateServices(ctx context.Context) (*sheets.Service, *drive.Service, error) {
+func (ac *AuthConfig) CreateServices(ctx context.Context) (*sheets.Service, any, error) {
 	token, credBytes, err := ac.GetCredentials(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -157,12 +150,7 @@ func (ac *AuthConfig) CreateServices(ctx context.Context) (*sheets.Service, *dri
 		return nil, nil, fmt.Errorf("failed to create sheets service: %w", err)
 	}
 
-	driveService, err := drive.NewService(ctx, opts...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create drive service: %w", err)
-	}
-
-	return sheetsService, driveService, nil
+	return sheetsService, nil, nil
 }
 
 func (ac *AuthConfig) getTokenFromFile() (*oauth2.Token, error) {

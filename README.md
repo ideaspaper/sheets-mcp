@@ -11,15 +11,13 @@ This MCP server enables AI assistants to interact with Google Sheets, providing 
 - Batch operations across multiple sheets
 - Advanced data operations (append, clear, find & replace, sort)
 - Cell formatting (colors, fonts, merge/unmerge)
-- Sharing and permissions management
-- Export to multiple formats (CSV, PDF, Excel, etc.)
 
 ## Installation
 
 ### Prerequisites
 
 - Go 1.24.4 or later
-- Google Cloud project with Sheets API and Drive API enabled
+- Google Cloud project with Sheets API enabled
 - Google service account credentials
 
 ```bash
@@ -32,9 +30,9 @@ go install github.com/ideaspaper/sheets-mcp@latest
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
-3. Enable the **Google Sheets API** and **Google Drive API**
+3. Enable the **Google Sheets API**
    - Navigate to **APIs & Services** > **Library**
-   - Search for and enable both APIs
+   - Search for and enable the Sheets API
 4. Create a service account:
    - Navigate to **IAM & Admin** > **Service Accounts**
    - Click **Create Service Account**
@@ -49,12 +47,10 @@ go install github.com/ideaspaper/sheets-mcp@latest
 
 ## Configuration
 
-Set the following environment variables to configure the server:
+Set the following environment variable to configure the server:
 
 ```bash
 export SERVICE_ACCOUNT_PATH="/path/to/service-account-key.json"
-# Optional: specify a Drive folder to work with
-export DRIVE_FOLDER_ID="your_folder_id_here"
 ```
 
 ## Usage
@@ -142,23 +138,8 @@ Add this to your OpenCode configuration file (Mac: `~/.config/opencode/config.js
 
 ### Spreadsheet Operations
 
-- **list_spreadsheets**: List all spreadsheets in configured Drive folder
-  - No parameters required
-
 - **create_spreadsheet**: Create a new spreadsheet
   - Parameters: `title`
-
-- **share_spreadsheet**: Share a spreadsheet with users
-  - Parameters: `spreadsheet_id`, `recipients`, `send_notification` (optional)
-
-- **list_permissions**: List all permissions for a spreadsheet
-  - Parameters: `spreadsheet_id`
-
-- **remove_permission**: Remove a permission from a spreadsheet
-  - Parameters: `spreadsheet_id`, `permission_id`
-
-- **export_spreadsheet**: Export a spreadsheet to different formats
-  - Parameters: `spreadsheet_id`, `format` (csv, pdf, xlsx, ods, tsv - default: csv)
 
 ### Formatting Operations
 
@@ -184,13 +165,12 @@ Add this to your OpenCode configuration file (Mac: `~/.config/opencode/config.js
 ### Authentication Errors
 
 - Ensure your service account email is shared with the spreadsheet you're trying to access
-- Verify that both Sheets API and Drive API are enabled in your Google Cloud project
+- Verify that the Sheets API is enabled in your Google Cloud project
 - Check that the credentials file path is correct and the file is readable
 
 ### Permission Errors
 
-- Make sure the service account has been granted access to the spreadsheet
-- For Drive folder operations, ensure the service account has access to the specified folder
+- Make sure the service account has been granted access to the spreadsheet (share it with the service account email)
 
 ### API Quota Errors
 

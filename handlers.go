@@ -6,20 +6,22 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"google.golang.org/api/drive/v3"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"google.golang.org/api/sheets/v4"
 )
 
-func getArgsFromRequest(request mcp.CallToolRequest) (map[string]any, error) {
-	args, ok := request.Params.Arguments.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("invalid arguments")
+func getArgsFromRequest(request *mcp.CallToolRequest) (map[string]any, error) {
+	if request.Params.Arguments == nil || len(request.Params.Arguments) == 0 {
+		return map[string]any{}, nil
+	}
+	var args map[string]any
+	if err := json.Unmarshal(request.Params.Arguments, &args); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
 	}
 	return args, nil
 }
 
-func (s *SheetsMCPServer) handleGetSheetData(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleGetSheetData(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -67,7 +69,7 @@ func (s *SheetsMCPServer) handleGetSheetData(ctx context.Context, request mcp.Ca
 	return respondWithJSON(response)
 }
 
-func (s *SheetsMCPServer) handleGetSheetFormulas(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleGetSheetFormulas(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -95,7 +97,7 @@ func (s *SheetsMCPServer) handleGetSheetFormulas(ctx context.Context, request mc
 	return respondWithJSON(result.Values)
 }
 
-func (s *SheetsMCPServer) handleUpdateCells(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleUpdateCells(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -134,7 +136,7 @@ func (s *SheetsMCPServer) handleUpdateCells(ctx context.Context, request mcp.Cal
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleBatchUpdateCells(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleBatchUpdateCells(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -183,7 +185,7 @@ func (s *SheetsMCPServer) handleBatchUpdateCells(ctx context.Context, request mc
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleAddRows(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleAddRows(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -232,7 +234,7 @@ func (s *SheetsMCPServer) handleAddRows(ctx context.Context, request mcp.CallToo
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleAddColumns(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleAddColumns(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -281,7 +283,7 @@ func (s *SheetsMCPServer) handleAddColumns(ctx context.Context, request mcp.Call
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleListSheets(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleListSheets(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -305,7 +307,7 @@ func (s *SheetsMCPServer) handleListSheets(ctx context.Context, request mcp.Call
 	return respondWithJSON(sheetNames)
 }
 
-func (s *SheetsMCPServer) handleCreateSheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleCreateSheet(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -350,7 +352,7 @@ func (s *SheetsMCPServer) handleCreateSheet(ctx context.Context, request mcp.Cal
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleCopySheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleCopySheet(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -409,7 +411,7 @@ func (s *SheetsMCPServer) handleCopySheet(ctx context.Context, request mcp.CallT
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleRenameSheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleRenameSheet(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -495,41 +497,7 @@ func convertToValues(data any) ([][]any, error) {
 	return values, nil
 }
 
-func (s *SheetsMCPServer) handleListSpreadsheets(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	_, _ = getArgsFromRequest(request)
-	query := "mimeType='application/vnd.google-apps.spreadsheet'"
-
-	if s.folderID != "" {
-		query = fmt.Sprintf("%s and '%s' in parents", query, s.folderID)
-		fmt.Printf("Searching for spreadsheets in folder: %s\n", s.folderID)
-	} else {
-		fmt.Println("Searching for spreadsheets in 'My Drive'")
-	}
-
-	results, err := s.driveService.Files.List().
-		Q(query).
-		Spaces("drive").
-		IncludeItemsFromAllDrives(true).
-		SupportsAllDrives(true).
-		Fields("files(id, name)").
-		OrderBy("modifiedTime desc").
-		Do()
-	if err != nil {
-		return respondWithError(fmt.Sprintf("failed to list spreadsheets: %v", err))
-	}
-
-	var spreadsheets []map[string]string
-	for _, file := range results.Files {
-		spreadsheets = append(spreadsheets, map[string]string{
-			"id":    file.Id,
-			"title": file.Name,
-		})
-	}
-
-	return respondWithJSON(spreadsheets)
-}
-
-func (s *SheetsMCPServer) handleCreateSpreadsheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleCreateSpreadsheet(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -540,41 +508,27 @@ func (s *SheetsMCPServer) handleCreateSpreadsheet(ctx context.Context, request m
 		return respondWithError("title is required")
 	}
 
-	driveFile := &drive.File{
-		Name:     title,
-		MimeType: "application/vnd.google-apps.spreadsheet",
+	spreadsheet := &sheets.Spreadsheet{
+		Properties: &sheets.SpreadsheetProperties{
+			Title: title,
+		},
 	}
 
-	if s.folderID != "" {
-		driveFile.Parents = []string{s.folderID}
-	}
-
-	file, err := s.driveService.Files.Create(driveFile).
-		SupportsAllDrives(true).
-		Fields("id, name, parents").
-		Do()
+	result, err := s.sheetsService.Spreadsheets.Create(spreadsheet).Do()
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to create spreadsheet: %v", err))
 	}
 
-	spreadsheetID := file.Id
-	fmt.Printf("Spreadsheet created with ID: %s\n", spreadsheetID)
-
-	folder := "root"
-	if len(file.Parents) > 0 {
-		folder = file.Parents[0]
-	}
-
 	response := map[string]any{
-		"spreadsheetId": spreadsheetID,
-		"title":         file.Name,
-		"folder":        folder,
+		"spreadsheetId": result.SpreadsheetId,
+		"title":         result.Properties.Title,
+		"url":           result.SpreadsheetUrl,
 	}
 
 	return respondWithJSON(response)
 }
 
-func (s *SheetsMCPServer) handleGetMultipleSheetData(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleGetMultipleSheetData(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -630,7 +584,7 @@ func (s *SheetsMCPServer) handleGetMultipleSheetData(ctx context.Context, reques
 	return respondWithJSON(results)
 }
 
-func (s *SheetsMCPServer) handleGetMultipleSpreadsheetSummary(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleGetMultipleSpreadsheetSummary(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -688,7 +642,9 @@ func (s *SheetsMCPServer) handleGetMultipleSpreadsheetSummary(ctx context.Contex
 				continue
 			}
 
-			rangeToGet := fmt.Sprintf("%s!A1:%d", sheetTitle, rowsToFetch)
+			// FIX: The original code had a bug here - it used fmt.Sprintf("%s!A1:%d", sheetTitle, rowsToFetch)
+			// which produces invalid ranges like "Sheet1!A1:5". Fixed to use proper A1 notation.
+			rangeToGet := fmt.Sprintf("%s!A1:ZZ%d", sheetTitle, rowsToFetch)
 
 			valuesResult, err := s.sheetsService.Spreadsheets.Values.Get(spreadsheetID, rangeToGet).Do()
 			if err != nil {
@@ -714,88 +670,7 @@ func (s *SheetsMCPServer) handleGetMultipleSpreadsheetSummary(ctx context.Contex
 	return respondWithJSON(summaries)
 }
 
-func (s *SheetsMCPServer) handleShareSpreadsheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	args, err := getArgsFromRequest(request)
-	if err != nil {
-		return respondWithError(err.Error())
-	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sendNotification := parseArgument(args, "send_notification", true)
-
-	if spreadsheetID == "" {
-		return respondWithError("spreadsheet_id is required")
-	}
-
-	recipientsRaw, ok := args["recipients"]
-	if !ok {
-		return respondWithError("recipients is required")
-	}
-
-	var recipients []map[string]string
-	if err := convertToType(recipientsRaw, &recipients); err != nil {
-		return respondWithError(fmt.Sprintf("invalid recipients format: %v", err))
-	}
-
-	var successes []map[string]any
-	var failures []map[string]any
-
-	for _, recipient := range recipients {
-		emailAddress := recipient["email_address"]
-		role := recipient["role"]
-		if role == "" {
-			role = "writer"
-		}
-
-		if emailAddress == "" {
-			failures = append(failures, map[string]any{
-				"email_address": nil,
-				"error":         "Missing email_address in recipient entry.",
-			})
-			continue
-		}
-
-		if role != "reader" && role != "commenter" && role != "writer" {
-			failures = append(failures, map[string]any{
-				"email_address": emailAddress,
-				"error":         fmt.Sprintf("Invalid role '%s'. Must be 'reader', 'commenter', or 'writer'.", role),
-			})
-			continue
-		}
-
-		permission := &drive.Permission{
-			Type:         "user",
-			Role:         role,
-			EmailAddress: emailAddress,
-		}
-
-		result, err := s.driveService.Permissions.Create(spreadsheetID, permission).
-			SendNotificationEmail(sendNotification).
-			Fields("id").
-			Do()
-		if err != nil {
-			failures = append(failures, map[string]any{
-				"email_address": emailAddress,
-				"error":         fmt.Sprintf("Failed to share: %v", err),
-			})
-			continue
-		}
-
-		successes = append(successes, map[string]any{
-			"email_address": emailAddress,
-			"role":          role,
-			"permissionId":  result.Id,
-		})
-	}
-
-	response := map[string]any{
-		"successes": successes,
-		"failures":  failures,
-	}
-
-	return respondWithJSON(response)
-}
-
-func (s *SheetsMCPServer) handleGetSpreadsheetInfo(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+func (s *SheetsMCPServer) handleGetSpreadsheetInfo(ctx context.Context, request *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 	uri := request.Params.URI
 
 	parts := strings.Split(uri, "://")
@@ -843,16 +718,18 @@ func (s *SheetsMCPServer) handleGetSpreadsheetInfo(ctx context.Context, request 
 		return nil, fmt.Errorf("failed to marshal info: %w", err)
 	}
 
-	content := &mcp.TextResourceContents{
-		URI:      uri,
-		MIMEType: "application/json",
-		Text:     string(infoBytes),
-	}
-
-	return []mcp.ResourceContents{content}, nil
+	return &mcp.ReadResourceResult{
+		Contents: []*mcp.ResourceContents{
+			{
+				URI:      uri,
+				MIMEType: "application/json",
+				Text:     string(infoBytes),
+			},
+		},
+	}, nil
 }
 
-func (s *SheetsMCPServer) handleAppendData(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleAppendData(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -888,7 +765,7 @@ func (s *SheetsMCPServer) handleAppendData(ctx context.Context, request mcp.Call
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleClearRange(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleClearRange(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -911,7 +788,7 @@ func (s *SheetsMCPServer) handleClearRange(ctx context.Context, request mcp.Call
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleDeleteSheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleDeleteSheet(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -948,7 +825,7 @@ func (s *SheetsMCPServer) handleDeleteSheet(ctx context.Context, request mcp.Cal
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleDuplicateSheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleDuplicateSheet(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -987,7 +864,7 @@ func (s *SheetsMCPServer) handleDuplicateSheet(ctx context.Context, request mcp.
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleFindReplace(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleFindReplace(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -1006,14 +883,15 @@ func (s *SheetsMCPServer) handleFindReplace(ctx context.Context, request mcp.Cal
 	findReplaceRequest := &sheets.FindReplaceRequest{
 		Find:            find,
 		Replacement:     replacement,
-		AllSheets:       allSheets,
 		MatchCase:       matchCase,
 		MatchEntireCell: matchEntireCell,
 		SearchByRegex:   false,
 		IncludeFormulas: true,
 	}
 
-	if !allSheets {
+	if allSheets {
+		findReplaceRequest.AllSheets = true
+	} else {
 		sheet := parseArgument(args, "sheet", "")
 		if sheet == "" {
 			return respondWithError("sheet is required when all_sheets is false")
@@ -1022,7 +900,10 @@ func (s *SheetsMCPServer) handleFindReplace(ctx context.Context, request mcp.Cal
 		if err != nil {
 			return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
 		}
-		findReplaceRequest.SheetId = sheetID
+		// Use Range instead of SheetId to avoid issues with sheet ID 0
+		findReplaceRequest.Range = &sheets.GridRange{
+			SheetId: sheetID,
+		}
 	}
 
 	requests := []*sheets.Request{
@@ -1043,7 +924,7 @@ func (s *SheetsMCPServer) handleFindReplace(ctx context.Context, request mcp.Cal
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleSortRange(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleSortRange(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -1094,7 +975,7 @@ func (s *SheetsMCPServer) handleSortRange(ctx context.Context, request mcp.CallT
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleFormatCells(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleFormatCells(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -1189,7 +1070,7 @@ func (s *SheetsMCPServer) handleFormatCells(ctx context.Context, request mcp.Cal
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleMergeCells(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleMergeCells(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -1234,7 +1115,7 @@ func (s *SheetsMCPServer) handleMergeCells(ctx context.Context, request mcp.Call
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleUnmergeCells(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleUnmergeCells(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -1277,7 +1158,7 @@ func (s *SheetsMCPServer) handleUnmergeCells(ctx context.Context, request mcp.Ca
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleHideSheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleHideSheet(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -1318,7 +1199,7 @@ func (s *SheetsMCPServer) handleHideSheet(ctx context.Context, request mcp.CallT
 	return respondWithJSON(result)
 }
 
-func (s *SheetsMCPServer) handleUnhideSheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *SheetsMCPServer) handleUnhideSheet(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, err := getArgsFromRequest(request)
 	if err != nil {
 		return respondWithError(err.Error())
@@ -1354,101 +1235,6 @@ func (s *SheetsMCPServer) handleUnhideSheet(ctx context.Context, request mcp.Cal
 	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to unhide sheet: %v", err))
-	}
-
-	return respondWithJSON(result)
-}
-
-func (s *SheetsMCPServer) handleListPermissions(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	args, err := getArgsFromRequest(request)
-	if err != nil {
-		return respondWithError(err.Error())
-	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-
-	if spreadsheetID == "" {
-		return respondWithError("spreadsheet_id is required")
-	}
-
-	permissions, err := s.driveService.Permissions.List(spreadsheetID).
-		Fields("permissions(id,type,role,emailAddress,displayName)").
-		SupportsAllDrives(true).
-		Do()
-	if err != nil {
-		return respondWithError(fmt.Sprintf("failed to list permissions: %v", err))
-	}
-
-	return respondWithJSON(permissions.Permissions)
-}
-
-func (s *SheetsMCPServer) handleRemovePermission(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	args, err := getArgsFromRequest(request)
-	if err != nil {
-		return respondWithError(err.Error())
-	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	permissionID := parseArgument(args, "permission_id", "")
-
-	if spreadsheetID == "" || permissionID == "" {
-		return respondWithError("spreadsheet_id and permission_id are required")
-	}
-
-	err = s.driveService.Permissions.Delete(spreadsheetID, permissionID).
-		SupportsAllDrives(true).
-		Do()
-	if err != nil {
-		return respondWithError(fmt.Sprintf("failed to remove permission: %v", err))
-	}
-
-	response := map[string]any{
-		"success":       true,
-		"permissionId":  permissionID,
-		"spreadsheetId": spreadsheetID,
-	}
-
-	return respondWithJSON(response)
-}
-
-func (s *SheetsMCPServer) handleExportSpreadsheet(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	args, err := getArgsFromRequest(request)
-	if err != nil {
-		return respondWithError(err.Error())
-	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	format := parseArgument(args, "format", "csv")
-
-	if spreadsheetID == "" {
-		return respondWithError("spreadsheet_id is required")
-	}
-
-	mimeType := ""
-	switch format {
-	case "csv":
-		mimeType = "text/csv"
-	case "pdf":
-		mimeType = "application/pdf"
-	case "xlsx":
-		mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-	case "ods":
-		mimeType = "application/vnd.oasis.opendocument.spreadsheet"
-	case "tsv":
-		mimeType = "text/tab-separated-values"
-	default:
-		return respondWithError(fmt.Sprintf("unsupported format: %s (supported: csv, pdf, xlsx, ods, tsv)", format))
-	}
-
-	response, err := s.driveService.Files.Export(spreadsheetID, mimeType).Download()
-	if err != nil {
-		return respondWithError(fmt.Sprintf("failed to export spreadsheet: %v", err))
-	}
-	defer response.Body.Close()
-
-	result := map[string]any{
-		"success":       true,
-		"spreadsheetId": spreadsheetID,
-		"format":        format,
-		"mimeType":      mimeType,
-		"message":       "Export successful. Use Drive API to download the file programmatically.",
 	}
 
 	return respondWithJSON(result)
