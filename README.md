@@ -65,7 +65,7 @@ Add this to your OpenCode configuration file (Mac: `~/.config/opencode/config.js
     "sheets-mcp": {
       "type": "local",
       "enabled": true,
-      "command": ["/path/to/sheets-mcp"],
+      "command": ["sheets-mcp"],
       "environment": {
         "SERVICE_ACCOUNT_PATH": "/path/to/service-account.json"
       }
@@ -73,6 +73,26 @@ Add this to your OpenCode configuration file (Mac: `~/.config/opencode/config.js
   }
 }
 ```
+
+### VSCode MCP Client Configuration
+
+Add this to your VSCode settings file (Mac: `~/Library/Application Support/Code/User/settings.json`, Windows: `%APPDATA%\Code\User\settings.json`):
+
+```json
+{
+  "mcp.servers": {
+    "sheets-mcp": {
+      "command": "sheets-mcp",
+      "args": [],
+      "env": {
+        "SERVICE_ACCOUNT_PATH": "/path/to/service-account.json"
+      }
+    }
+  }
+}
+```
+
+**Note**: Make sure you have the [MCP extension](https://marketplace.visualstudio.com/items?itemName=ModelContextProtocol.mcp-vscode) installed in VSCode.
 
 ## Available Tools
 

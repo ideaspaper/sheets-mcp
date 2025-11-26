@@ -26,19 +26,14 @@ func (s *SheetsMCPServer) handleGetSheetData(ctx context.Context, request *mcp.C
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
-	rangeStr := parseArgument(args, "range", "")
+	spreadsheetID, sheet, rangeStr := parseCommonArgs(args)
 	includeGridData := parseArgument(args, "include_grid_data", false)
 
 	if spreadsheetID == "" || sheet == "" {
 		return respondWithError("spreadsheet_id and sheet are required")
 	}
 
-	fullRange := sheet
-	if rangeStr != "" {
-		fullRange = fmt.Sprintf("%s!%s", sheet, rangeStr)
-	}
+	fullRange := buildFullRange(sheet, rangeStr)
 
 	if includeGridData {
 		result, err := s.sheetsService.Spreadsheets.Get(spreadsheetID).
@@ -74,18 +69,13 @@ func (s *SheetsMCPServer) handleGetSheetFormulas(ctx context.Context, request *m
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
-	rangeStr := parseArgument(args, "range", "")
+	spreadsheetID, sheet, rangeStr := parseCommonArgs(args)
 
 	if spreadsheetID == "" || sheet == "" {
 		return respondWithError("spreadsheet_id and sheet are required")
 	}
 
-	fullRange := sheet
-	if rangeStr != "" {
-		fullRange = fmt.Sprintf("%s!%s", sheet, rangeStr)
-	}
+	fullRange := buildFullRange(sheet, rangeStr)
 
 	result, err := s.sheetsService.Spreadsheets.Values.Get(spreadsheetID, fullRange).
 		ValueRenderOption("FORMULA").
@@ -102,9 +92,7 @@ func (s *SheetsMCPServer) handleUpdateCells(ctx context.Context, request *mcp.Ca
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
-	rangeStr := parseArgument(args, "range", "")
+	spreadsheetID, sheet, rangeStr := parseCommonArgs(args)
 
 	if spreadsheetID == "" || sheet == "" || rangeStr == "" {
 		return respondWithError("spreadsheet_id, sheet, and range are required")
@@ -120,7 +108,7 @@ func (s *SheetsMCPServer) handleUpdateCells(ctx context.Context, request *mcp.Ca
 		return respondWithError(fmt.Sprintf("invalid data format: %v", err))
 	}
 
-	fullRange := fmt.Sprintf("%s!%s", sheet, rangeStr)
+	fullRange := buildFullRange(sheet, rangeStr)
 
 	valueRange := &sheets.ValueRange{
 		Values: data,
@@ -190,8 +178,7 @@ func (s *SheetsMCPServer) handleAddRows(ctx context.Context, request *mcp.CallTo
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
+	spreadsheetID, sheet, _ := parseCommonArgs(args)
 	count := int64(parseArgument(args, "count", float64(0)))
 
 	if spreadsheetID == "" || sheet == "" || count <= 0 {
@@ -222,11 +209,7 @@ func (s *SheetsMCPServer) handleAddRows(ctx context.Context, request *mcp.CallTo
 		},
 	}
 
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	result, err := s.executeBatchUpdate(spreadsheetID, requests)
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to add rows: %v", err))
 	}
@@ -239,8 +222,7 @@ func (s *SheetsMCPServer) handleAddColumns(ctx context.Context, request *mcp.Cal
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
+	spreadsheetID, sheet, _ := parseCommonArgs(args)
 	count := int64(parseArgument(args, "count", float64(0)))
 
 	if spreadsheetID == "" || sheet == "" || count <= 0 {
@@ -271,11 +253,7 @@ func (s *SheetsMCPServer) handleAddColumns(ctx context.Context, request *mcp.Cal
 		},
 	}
 
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	result, err := s.executeBatchUpdate(spreadsheetID, requests)
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to add columns: %v", err))
 	}
@@ -312,7 +290,7 @@ func (s *SheetsMCPServer) handleCreateSheet(ctx context.Context, request *mcp.Ca
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
+	spreadsheetID, _, _ := parseCommonArgs(args)
 	title := parseArgument(args, "title", "")
 
 	if spreadsheetID == "" || title == "" {
@@ -329,11 +307,7 @@ func (s *SheetsMCPServer) handleCreateSheet(ctx context.Context, request *mcp.Ca
 		},
 	}
 
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	result, err := s.executeBatchUpdate(spreadsheetID, requests)
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to create sheet: %v", err))
 	}
@@ -441,11 +415,7 @@ func (s *SheetsMCPServer) handleRenameSheet(ctx context.Context, request *mcp.Ca
 		},
 	}
 
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheet, batchUpdate).Do()
+	result, err := s.executeBatchUpdate(spreadsheet, requests)
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to rename sheet: %v", err))
 	}
@@ -734,8 +704,7 @@ func (s *SheetsMCPServer) handleAppendData(ctx context.Context, request *mcp.Cal
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
+	spreadsheetID, sheet, _ := parseCommonArgs(args)
 
 	if spreadsheetID == "" || sheet == "" {
 		return respondWithError("spreadsheet_id and sheet are required")
@@ -770,15 +739,13 @@ func (s *SheetsMCPServer) handleClearRange(ctx context.Context, request *mcp.Cal
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
-	rangeStr := parseArgument(args, "range", "")
+	spreadsheetID, sheet, rangeStr := parseCommonArgs(args)
 
 	if spreadsheetID == "" || sheet == "" || rangeStr == "" {
 		return respondWithError("spreadsheet_id, sheet, and range are required")
 	}
 
-	fullRange := fmt.Sprintf("%s!%s", sheet, rangeStr)
+	fullRange := buildFullRange(sheet, rangeStr)
 
 	result, err := s.sheetsService.Spreadsheets.Values.Clear(spreadsheetID, fullRange, &sheets.ClearValuesRequest{}).Do()
 	if err != nil {
@@ -793,8 +760,7 @@ func (s *SheetsMCPServer) handleDeleteSheet(ctx context.Context, request *mcp.Ca
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
+	spreadsheetID, sheet, _ := parseCommonArgs(args)
 
 	if spreadsheetID == "" || sheet == "" {
 		return respondWithError("spreadsheet_id and sheet are required")
@@ -813,11 +779,7 @@ func (s *SheetsMCPServer) handleDeleteSheet(ctx context.Context, request *mcp.Ca
 		},
 	}
 
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	result, err := s.executeBatchUpdate(spreadsheetID, requests)
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to delete sheet: %v", err))
 	}
@@ -830,8 +792,7 @@ func (s *SheetsMCPServer) handleDuplicateSheet(ctx context.Context, request *mcp
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
+	spreadsheetID, sheet, _ := parseCommonArgs(args)
 	newTitle := parseArgument(args, "new_title", "")
 
 	if spreadsheetID == "" || sheet == "" {
@@ -852,11 +813,7 @@ func (s *SheetsMCPServer) handleDuplicateSheet(ctx context.Context, request *mcp
 		},
 	}
 
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	result, err := s.executeBatchUpdate(spreadsheetID, requests)
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to duplicate sheet: %v", err))
 	}
@@ -912,11 +869,7 @@ func (s *SheetsMCPServer) handleFindReplace(ctx context.Context, request *mcp.Ca
 		},
 	}
 
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	result, err := s.executeBatchUpdate(spreadsheetID, requests)
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to find and replace: %v", err))
 	}
@@ -929,9 +882,7 @@ func (s *SheetsMCPServer) handleSortRange(ctx context.Context, request *mcp.Call
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
-	rangeStr := parseArgument(args, "range", "")
+	spreadsheetID, sheet, rangeStr := parseCommonArgs(args)
 	sortColumn := int64(parseArgument(args, "sort_column", float64(0)))
 	ascending := parseArgument(args, "ascending", true)
 
@@ -963,11 +914,7 @@ func (s *SheetsMCPServer) handleSortRange(ctx context.Context, request *mcp.Call
 		},
 	}
 
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	result, err := s.executeBatchUpdate(spreadsheetID, requests)
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to sort range: %v", err))
 	}
@@ -980,9 +927,7 @@ func (s *SheetsMCPServer) handleFormatCells(ctx context.Context, request *mcp.Ca
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
-	rangeStr := parseArgument(args, "range", "")
+	spreadsheetID, sheet, rangeStr := parseCommonArgs(args)
 
 	if spreadsheetID == "" || sheet == "" || rangeStr == "" {
 		return respondWithError("spreadsheet_id, sheet, and range are required")
@@ -1058,11 +1003,7 @@ func (s *SheetsMCPServer) handleFormatCells(ctx context.Context, request *mcp.Ca
 		},
 	}
 
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	result, err := s.executeBatchUpdate(spreadsheetID, requests)
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to format cells: %v", err))
 	}
@@ -1075,9 +1016,7 @@ func (s *SheetsMCPServer) handleMergeCells(ctx context.Context, request *mcp.Cal
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
-	rangeStr := parseArgument(args, "range", "")
+	spreadsheetID, sheet, rangeStr := parseCommonArgs(args)
 	mergeType := parseArgument(args, "merge_type", "MERGE_ALL")
 
 	if spreadsheetID == "" || sheet == "" || rangeStr == "" {
@@ -1103,11 +1042,7 @@ func (s *SheetsMCPServer) handleMergeCells(ctx context.Context, request *mcp.Cal
 		},
 	}
 
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	result, err := s.executeBatchUpdate(spreadsheetID, requests)
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to merge cells: %v", err))
 	}
@@ -1120,9 +1055,7 @@ func (s *SheetsMCPServer) handleUnmergeCells(ctx context.Context, request *mcp.C
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
-	rangeStr := parseArgument(args, "range", "")
+	spreadsheetID, sheet, rangeStr := parseCommonArgs(args)
 
 	if spreadsheetID == "" || sheet == "" || rangeStr == "" {
 		return respondWithError("spreadsheet_id, sheet, and range are required")
@@ -1146,11 +1079,7 @@ func (s *SheetsMCPServer) handleUnmergeCells(ctx context.Context, request *mcp.C
 		},
 	}
 
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+	result, err := s.executeBatchUpdate(spreadsheetID, requests)
 	if err != nil {
 		return respondWithError(fmt.Sprintf("failed to unmerge cells: %v", err))
 	}
@@ -1163,40 +1092,13 @@ func (s *SheetsMCPServer) handleHideSheet(ctx context.Context, request *mcp.Call
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
+	spreadsheetID, sheet, _ := parseCommonArgs(args)
 
 	if spreadsheetID == "" || sheet == "" {
 		return respondWithError("spreadsheet_id and sheet are required")
 	}
 
-	sheetID, err := s.getSheetID(spreadsheetID, sheet)
-	if err != nil {
-		return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
-	}
-
-	requests := []*sheets.Request{
-		{
-			UpdateSheetProperties: &sheets.UpdateSheetPropertiesRequest{
-				Properties: &sheets.SheetProperties{
-					SheetId: sheetID,
-					Hidden:  true,
-				},
-				Fields: "hidden",
-			},
-		},
-	}
-
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
-	if err != nil {
-		return respondWithError(fmt.Sprintf("failed to hide sheet: %v", err))
-	}
-
-	return respondWithJSON(result)
+	return s.updateSheetVisibility(spreadsheetID, sheet, true)
 }
 
 func (s *SheetsMCPServer) handleUnhideSheet(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -1204,40 +1106,13 @@ func (s *SheetsMCPServer) handleUnhideSheet(ctx context.Context, request *mcp.Ca
 	if err != nil {
 		return respondWithError(err.Error())
 	}
-	spreadsheetID := parseArgument(args, "spreadsheet_id", "")
-	sheet := parseArgument(args, "sheet", "")
+	spreadsheetID, sheet, _ := parseCommonArgs(args)
 
 	if spreadsheetID == "" || sheet == "" {
 		return respondWithError("spreadsheet_id and sheet are required")
 	}
 
-	sheetID, err := s.getSheetID(spreadsheetID, sheet)
-	if err != nil {
-		return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
-	}
-
-	requests := []*sheets.Request{
-		{
-			UpdateSheetProperties: &sheets.UpdateSheetPropertiesRequest{
-				Properties: &sheets.SheetProperties{
-					SheetId: sheetID,
-					Hidden:  false,
-				},
-				Fields: "hidden",
-			},
-		},
-	}
-
-	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
-		Requests: requests,
-	}
-
-	result, err := s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
-	if err != nil {
-		return respondWithError(fmt.Sprintf("failed to unhide sheet: %v", err))
-	}
-
-	return respondWithJSON(result)
+	return s.updateSheetVisibility(spreadsheetID, sheet, false)
 }
 
 func parseGridRange(sheetID int64, rangeStr string) (*sheets.GridRange, error) {
@@ -1329,4 +1204,59 @@ func convertToType(data any, target any) error {
 	}
 
 	return json.Unmarshal(dataBytes, target)
+}
+
+// executeBatchUpdate executes a batch update request on a spreadsheet
+func (s *SheetsMCPServer) executeBatchUpdate(spreadsheetID string, requests []*sheets.Request) (*sheets.BatchUpdateSpreadsheetResponse, error) {
+	batchUpdate := &sheets.BatchUpdateSpreadsheetRequest{
+		Requests: requests,
+	}
+	return s.sheetsService.Spreadsheets.BatchUpdate(spreadsheetID, batchUpdate).Do()
+}
+
+// buildFullRange builds a full range string from sheet and optional range
+func buildFullRange(sheet, rangeStr string) string {
+	if rangeStr != "" {
+		return fmt.Sprintf("%s!%s", sheet, rangeStr)
+	}
+	return sheet
+}
+
+// parseCommonArgs extracts common spreadsheet_id, sheet, and range arguments
+func parseCommonArgs(args map[string]any) (spreadsheetID, sheet, rangeStr string) {
+	spreadsheetID = parseArgument(args, "spreadsheet_id", "")
+	sheet = parseArgument(args, "sheet", "")
+	rangeStr = parseArgument(args, "range", "")
+	return
+}
+
+// updateSheetVisibility updates the hidden property of a sheet
+func (s *SheetsMCPServer) updateSheetVisibility(spreadsheetID, sheet string, hidden bool) (*mcp.CallToolResult, error) {
+	sheetID, err := s.getSheetID(spreadsheetID, sheet)
+	if err != nil {
+		return respondWithError(fmt.Sprintf("failed to get sheet ID: %v", err))
+	}
+
+	requests := []*sheets.Request{
+		{
+			UpdateSheetProperties: &sheets.UpdateSheetPropertiesRequest{
+				Properties: &sheets.SheetProperties{
+					SheetId: sheetID,
+					Hidden:  hidden,
+				},
+				Fields: "hidden",
+			},
+		},
+	}
+
+	result, err := s.executeBatchUpdate(spreadsheetID, requests)
+	if err != nil {
+		action := "hide"
+		if !hidden {
+			action = "unhide"
+		}
+		return respondWithError(fmt.Sprintf("failed to %s sheet: %v", action, err))
+	}
+
+	return respondWithJSON(result)
 }
