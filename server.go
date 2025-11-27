@@ -85,7 +85,14 @@ func (s *SheetsMCPServer) registerTools() {
 				"spreadsheet_id": map[string]any{"type": "string", "description": "The ID of the spreadsheet"},
 				"sheet":          map[string]any{"type": "string", "description": "The name of the sheet"},
 				"range":          map[string]any{"type": "string", "description": "Cell range in A1 notation"},
-				"data":           map[string]any{"type": "array", "description": "2D array of values to update"},
+				"data": map[string]any{
+					"type":        "array",
+					"description": "2D array of values to update",
+					"items": map[string]any{
+						"type":  "array",
+						"items": map[string]any{},
+					},
+				},
 			},
 			"required": []string{"spreadsheet_id", "sheet", "range", "data"},
 		}),
@@ -211,7 +218,14 @@ func (s *SheetsMCPServer) registerTools() {
 		InputSchema: mustSchema(map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"queries": map[string]any{"type": "array", "description": "List of query objects with spreadsheet_id, sheet, and range"},
+				"queries": map[string]any{
+					"type":        "array",
+					"description": "List of query objects with spreadsheet_id, sheet, and range",
+					"items": map[string]any{
+						"type":                 "object",
+						"additionalProperties": true,
+					},
+				},
 			},
 			"required": []string{"queries"},
 		}),
@@ -223,8 +237,14 @@ func (s *SheetsMCPServer) registerTools() {
 		InputSchema: mustSchema(map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"spreadsheet_ids": map[string]any{"type": "array", "description": "List of spreadsheet IDs"},
-				"rows_to_fetch":   map[string]any{"type": "number", "description": "Number of rows to fetch for summary (default: 5)"},
+				"spreadsheet_ids": map[string]any{
+					"type":        "array",
+					"description": "List of spreadsheet IDs",
+					"items": map[string]any{
+						"type": "string",
+					},
+				},
+				"rows_to_fetch": map[string]any{"type": "number", "description": "Number of rows to fetch for summary (default: 5)"},
 			},
 			"required": []string{"spreadsheet_ids"},
 		}),
@@ -239,7 +259,14 @@ func (s *SheetsMCPServer) registerTools() {
 			"properties": map[string]any{
 				"spreadsheet_id": map[string]any{"type": "string", "description": "The ID of the spreadsheet"},
 				"sheet":          map[string]any{"type": "string", "description": "The name of the sheet"},
-				"data":           map[string]any{"type": "array", "description": "2D array of values to append"},
+				"data": map[string]any{
+					"type":        "array",
+					"description": "2D array of values to append",
+					"items": map[string]any{
+						"type":  "array",
+						"items": map[string]any{},
+					},
+				},
 			},
 			"required": []string{"spreadsheet_id", "sheet", "data"},
 		}),
