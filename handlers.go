@@ -11,7 +11,7 @@ import (
 )
 
 func getArgsFromRequest(request *mcp.CallToolRequest) (map[string]any, error) {
-	if request.Params.Arguments == nil || len(request.Params.Arguments) == 0 {
+	if len(request.Params.Arguments) == 0 {
 		return map[string]any{}, nil
 	}
 	var args map[string]any
