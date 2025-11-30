@@ -30,6 +30,7 @@ credentials.json
 token.json
 service-account*.json
 *.pem
+.env
 
 # OS
 .DS_Store

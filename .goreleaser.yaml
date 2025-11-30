@@ -1,0 +1,59 @@
+version: 2
+
+project_name: sheets-mcp
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - binary: sheets-mcp
+    main: .
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+
+homebrew_casks:
+  - repository:
+      owner: ideaspaper
+      name: homebrew-tap
+    directory: Casks
+    homepage: "https://github.com/ideaspaper/sheets-mcp"
+    description: "A Model Context Protocol (MCP) server for Google Sheets integration"
+    license: "MIT"
+    hooks:
+      post:
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/sheets-mcp"
+          end

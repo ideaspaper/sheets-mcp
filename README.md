@@ -16,12 +16,30 @@ This MCP server enables AI assistants to interact with Google Sheets, providing 
 
 ### Prerequisites
 
-- Go 1.24.4 or later
 - Google Cloud project with Sheets API enabled
 - Google service account credentials
 
+### Homebrew (macOS)
+
+```bash
+brew tap ideaspaper/tap
+brew install --cask sheets-mcp
+```
+
+### Go Install
+
+Requires Go 1.24.4 or later.
+
 ```bash
 go install github.com/ideaspaper/sheets-mcp@latest
+```
+
+### Build from Source
+
+```bash
+git clone https://github.com/ideaspaper/sheets-mcp.git
+cd sheets-mcp
+make build
 ```
 
 ## Authentication Setup

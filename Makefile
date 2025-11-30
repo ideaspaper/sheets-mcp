@@ -1,31 +1,49 @@
-.PHONY: build clean install test run help
+.PHONY: build install clean test lint release release-snapshot
 
-BINARY_NAME=sheets-mcp
-INSTALL_PATH=$(HOME)/.local/bin
+# Build variables
+BINARY_NAME := sheets-mcp
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS := -s -w -X main.version=$(VERSION)
 
-help:
-	@echo "Available targets:"
-	@echo "  build    - Build the binary"
-	@echo "  clean    - Remove build artifacts"
-	@echo "  install  - Install to $(INSTALL_PATH)"
-	@echo "  test     - Run tests"
-	@echo "  run      - Run the server"
-
+# Build the binary
 build:
-	go build -o $(BINARY_NAME) .
+	go build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) .
 
-clean:
-	rm -f $(BINARY_NAME)
-	go clean
+# Install to $GOPATH/bin
+install:
+	go install -ldflags "$(LDFLAGS)" .
 
-install: build
-	mkdir -p $(INSTALL_PATH)
-	cp $(BINARY_NAME) $(INSTALL_PATH)/
-
+# Run tests
 test:
 	go test -v ./...
 
-run: build
-	./$(BINARY_NAME)
+# Run tests with coverage
+test-coverage:
+	go test -v -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
 
-.DEFAULT_GOAL := help
+# Lint the code
+lint:
+	golangci-lint run
+
+# Clean build artifacts
+clean:
+	rm -f $(BINARY_NAME)
+	rm -f coverage.out coverage.html
+	rm -rf dist/
+
+# Test release locally (no publish)
+release-snapshot:
+	goreleaser release --snapshot --clean
+
+# Create a new release (requires GITHUB_TOKEN in .env)
+release:
+	set -a && source .env && set +a && goreleaser release --clean
+
+# Create a new tag and release
+# Usage: make release-tag VERSION=v1.0.0
+release-tag:
+	@if [ -z "$(VERSION)" ]; then echo "Usage: make release-tag VERSION=v1.0.0"; exit 1; fi
+	git tag -a $(VERSION) -m "Release $(VERSION)"
+	git push origin $(VERSION)
+	set -a && source .env && set +a && goreleaser release --clean
